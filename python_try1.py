@@ -105,7 +105,8 @@ def random_sample(fname, mapping, audiobook_length, duration=10):
     ebook_guess = get_position_by_time(mapping, sample_time)
 
     # Get the error
-    print(f" Random sample occurring at {sample_time} seconds:  Guess = {ebook_guess}  Actual = {ebook_actual}    error: {ebook_actual - ebook_guess}")
+    #print(f" Random sample occurring at {sample_time} seconds:  Guess = {ebook_guess}  Actual = {ebook_actual}    error: {ebook_actual - ebook_guess}")
+    print(f" Random sample occurring at {sample_time} seconds error: {int(ebook_actual - ebook_guess)} characters")
 
 
 def get_position_by_time(mapping, sample_time):
@@ -143,15 +144,15 @@ def get_position_by_time(mapping, sample_time):
 
     position = y1 + (sample_time - x1)*(y2-y1)/(x2-x1)
 
-    print(f" time bounds: {times[lowest]}  ->  {times[highest]}")
+    #print(f" time bounds: {times[lowest]}  ->  {times[highest]}")
 
     return position
 
 
 
 
-#BOOK_NAME = "Oathbringer"
-BOOK_NAME = "Sufficiently Advanced Magic"
+BOOK_NAME = "Oathbringer"
+#BOOK_NAME = "Sufficiently Advanced Magic"
 
 # Set up EPUB
 fsize = convert_ebook(f"{BOOK_NAME}.epub")
@@ -163,8 +164,9 @@ audio_length = get_audio_length(f"{BOOK_NAME}.m4a")
 
 """
 time_map = []
-for start in range(100, int(audio_length), 1000):
-#for start in range(100, int(audio_length), 3000):
+#for start in range(100, int(audio_length), 300):
+for start in range(100, int(audio_length), 900):
+#for start in range(100, int(audio_length), 2000):
     position = fancy_get_position(f"{BOOK_NAME}.m4a", start, duration=4)
     if position < 0:
         continue
@@ -193,5 +195,5 @@ with open('test.csv','r') as csvfile:
         time_map.append(line)
 
 
-for i in range(5):
+for i in range(10):
     random_sample(f"{BOOK_NAME}.m4a", time_map, audio_length, duration=4)
