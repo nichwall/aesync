@@ -2,6 +2,7 @@ from fuzzysearch import find_near_matches_in_file, find_near_matches
 import subprocess
 import time
 import csv
+from random import randint
 
 def extract_snippet(fname, start, duration=10):
     # Extract to a temp file
@@ -33,9 +34,11 @@ def get_position(search_str):
                 max_l_dist += 5
     return nearest
 
-def fancy_get_position(fname, start, duration=10):
-    print()
-    print("Extracting audio...")
+def fancy_get_position(fname, start, duration=10, debug=False):
+    if debug:
+        print()
+        print("Extracting audio...")
+
     # Extract the snippet
     search_str = extract_snippet(fname, start, duration=duration)
 
@@ -46,24 +49,29 @@ def fancy_get_position(fname, start, duration=10):
     if audiobook_percentage < 0:
         audiobook_percentage = 0
 
-    print("Trimming text...")
+    if debug:
+        print("Trimming text...")
     # Use percentage to get starting point of where to look
     with open("work/input.txt",'r') as f:
         fsize = len(f.read())
 
     text_start_loc = int( audiobook_percentage       * fsize)
     text_end_loc   = int((audiobook_percentage+0.1) * fsize)
+    if text_end_loc > fsize:
+        text_end_loc = fsize
 
-    print(f"Text start location: {text_start_loc}    percent: {audiobook_percentage}")
-    print(f"Text end location  : {text_end_loc}    percent: {audiobook_percentage+0.1}")
+    if debug:
+        print(f"Text start location: {text_start_loc}    percent: {audiobook_percentage}")
+        print(f"Text end location  : {text_end_loc}    percent: {audiobook_percentage+0.1}")
 
     with open("work/input.txt", 'r') as f:
         text_search = f.read()[text_start_loc:text_end_loc]
 
     # Look for search string in subsection
-    print("Searching...")
+    if debug:
+        print("Searching...")
     try:
-        nearest = find_near_matches(search_str, text_search, max_l_dist=10)
+        nearest = find_near_matches(search_str, text_search, max_l_dist=7)
         # Adjust start position by actual start position
         return nearest[0].start + text_start_loc
     except:
@@ -86,7 +94,64 @@ def get_audio_length(fname):
 
     return float(ret_output)
 
-BOOK_NAME = "Oathbringer"
+def random_sample(fname, mapping, audiobook_length, duration=10):
+    ebook_actual = -1
+    while (ebook_actual < 0):
+        # Gets random sample from the book and calculate error
+        sample_time = randint(1, int(audiobook_length))
+        ebook_actual = fancy_get_position(fname, sample_time, duration=duration)
+
+    # Estimate position in book
+    ebook_guess = get_position_by_time(mapping, sample_time)
+
+    # Get the error
+    print(f" Random sample occurring at {sample_time} seconds:  Guess = {ebook_guess}  Actual = {ebook_actual}    error: {ebook_actual - ebook_guess}")
+
+
+def get_position_by_time(mapping, sample_time):
+    times = []
+    positions = []
+    for entry in mapping:
+        times.append(int(entry["time"]))
+        positions.append(int(entry["position"]))
+
+    #interped = interp1d(times, positions)
+    #return interped(sample_time)
+
+    # Own interpolation to see if it's better
+    
+    # Find closest lower
+    idx = 0
+    #print(f"Sample time: {sample_time}")
+    #print(f"Mapping: {mapping}")
+    while times[idx] < sample_time:
+        #print(f"  idx: {idx} / {len(times)}")
+        idx += 1
+
+    lowest = idx
+    highest = idx + 1
+
+    # Check if out of bounds
+    if highest > len(times):
+        lowest  -= 1
+        highest -= 1
+
+    x1 = times[lowest ]
+    x2 = times[highest]
+    y1 = positions[lowest ]
+    y2 = positions[highest]
+
+    position = y1 + (sample_time - x1)*(y2-y1)/(x2-x1)
+
+    print(f" time bounds: {times[lowest]}  ->  {times[highest]}")
+
+    return position
+
+
+
+
+#BOOK_NAME = "Oathbringer"
+BOOK_NAME = "Sufficiently Advanced Magic"
 
 # Set up EPUB
 fsize = convert_ebook(f"{BOOK_NAME}.epub")
@@ -95,9 +160,11 @@ fsize = convert_ebook(f"{BOOK_NAME}.epub")
 audio_length = get_audio_length(f"{BOOK_NAME}.m4a")
 
 # Get time stamps
+
+"""
 time_map = []
-#for start in range(100, int(audio_length), 1000):
 for start in range(100, int(audio_length), 1000):
+#for start in range(100, int(audio_length), 3000):
     position = fancy_get_position(f"{BOOK_NAME}.m4a", start, duration=4)
     if position < 0:
         continue
@@ -106,7 +173,7 @@ for start in range(100, int(audio_length), 1000):
     percent = position / fsize * 100
 
     # Add to lookup
-    mapper = {"time": start, "percentage": percent}
+    mapper = {"time": start, "percentage": percent, "position": position}
     time_map.append(mapper)
 
     #print(position)
@@ -117,3 +184,14 @@ with open('test.csv','w') as csvfile:
     writer = csv.DictWriter(csvfile, fieldnames=time_map[0].keys())
     writer.writeheader()
     writer.writerows(time_map)
+    """
+
+time_map = []
+with open('test.csv','r') as csvfile:
+    reader = csv.DictReader(csvfile)
+    for line in reader:
+        time_map.append(line)
+
+
+for i in range(5):
+    random_sample(f"{BOOK_NAME}.m4a", time_map, audio_length, duration=4)
