@@ -55,7 +55,7 @@ def fancy_get_position(fname, start, duration=10):
     text_end_loc   = int((audiobook_percentage+0.1) * fsize)
 
     print(f"Text start location: {text_start_loc}    percent: {audiobook_percentage}")
-    print(f"Text end location  : {text_end_loc}    percent: {audiobook_percentage+0.06}")
+    print(f"Text end location  : {text_end_loc}    percent: {audiobook_percentage+0.1}")
 
     with open("work/input.txt", 'r') as f:
         text_search = f.read()[text_start_loc:text_end_loc]
@@ -64,15 +64,10 @@ def fancy_get_position(fname, start, duration=10):
     print("Searching...")
     try:
         nearest = find_near_matches(search_str, text_search, max_l_dist=10)
+        # Adjust start position by actual start position
+        return nearest[0].start + text_start_loc
     except:
         return -1
-
-    if len(nearest) == 0:
-        return -1
-
-    # Adjust start position by actual start position
-    return nearest[0].start + text_start_loc
-
 
 def convert_ebook(fname):
     # Convert epub to txt using epub2txt2
@@ -91,31 +86,23 @@ def get_audio_length(fname):
 
     return float(ret_output)
 
+BOOK_NAME = "Oathbringer"
 
 # Set up EPUB
-fsize = convert_ebook("Sufficiently Advanced Magic.epub")
+fsize = convert_ebook(f"{BOOK_NAME}.epub")
 
 # Get length of audio file
-audio_length = get_audio_length("Sufficiently Advanced Magic.m4a")
+audio_length = get_audio_length(f"{BOOK_NAME}.m4a")
 
 # Get time stamps
 time_map = []
 #for start in range(100, int(audio_length), 1000):
 for start in range(100, int(audio_length), 1000):
-    position = fancy_get_position("Sufficiently Advanced Magic.m4a", start, duration=4)
+    position = fancy_get_position(f"{BOOK_NAME}.m4a", start, duration=4)
     if position < 0:
         continue
-    print(f"  Actual location found: {transcription}")
-    """
-    transcription = extract_snippet("Sufficiently Advanced Magic.m4a", start, duration=4)
-    position = get_position(transcription)
-    if len(position) == 0:
-        continue
-    position = position[0]
+    print(f"  Actual location found: {position}")
 
-    # Calculate percentage through audiobook
-    percent = position.start / fsize * 100
-    """
     percent = position / fsize * 100
 
     # Add to lookup
