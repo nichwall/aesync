@@ -32,5 +32,12 @@
 *.app
 
 
-# Input files
-fuzzy
+# Input/Output files
+*.csv
+*.m4a
+*.m4b
+*.wav
+*.epub
+
+# Utility
+epub2txt2
