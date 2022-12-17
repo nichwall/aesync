@@ -58,7 +58,6 @@ class AESync:
 
     def extract_snippet(self, start, duration=10, debug=False):
         # Extract to a temp file
-        #temp_filename = f"{self.temp_dir}/seg_{start}.wav"
         temp_filename = path.join(self.temp_dir, f"seg.wav")
         cmd = f"""ffmpeg -y -loglevel panic -ss {start} -to {start+duration} -i "{self.fname_audio}" "{temp_filename}" """
 
