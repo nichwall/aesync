@@ -4,6 +4,9 @@ import time
 import csv
 from random import randint
 
+import tempfile
+from os import path
+
 import whisper
 
 def interp(x, x1, y1, x2, y2):
@@ -22,22 +25,24 @@ class AESync:
         self.ebook_size   = 0
         self.audio_length = 0
 
-        self.temp_dir = "work"
+        self.temp_dir = tempfile.gettempdir()
 
     def convert_ebook(self):
         # Get file format of ebook
         ebook_format = self.fname_ebook.split(".")[-1]
 
+        input_txt = path.join(self.temp_dir, "input.txt")
+
         if ebook_format == "epub":
             # Convert epub to txt using epub2txt2
-            cmd = f"""./epub2txt2/epub2txt "{self.fname_ebook}" > {self.temp_dir}/input.txt"""
+            cmd = f"""./epub2txt2/epub2txt "{self.fname_ebook}" > {input_txt}"""
         elif ebook_format == "txt":
             # Just copy the book if text file
-            cmd = f"""cp "{self.fname_ebook}" {self.temp_dir}/input.txt"""
+            cmd = f"""cp "{self.fname_ebook}" {input_txt}"""
 
         subprocess.run(cmd, shell=True)
 
-        with open(f"{self.temp_dir}/input.txt",'r') as f:
+        with open(input_txt,'r') as f:
             self.ebook_size = len(f.read())
 
     def get_audio_length(self):
@@ -49,7 +54,8 @@ class AESync:
 
     def extract_snippet(self, start, duration=10, debug=False):
         # Extract to a temp file
-        temp_filename = f"{self.temp_dir}/seg_{start}.wav"
+        #temp_filename = f"{self.temp_dir}/seg_{start}.wav"
+        temp_filename = path.join(self.temp_dir, f"seg.wav")
         cmd = f"""ffmpeg -y -loglevel panic -ss {start} -to {start+duration} -i "{self.fname_audio}" "{temp_filename}" """
 
         # Run command
@@ -97,22 +103,22 @@ class AESync:
         # Figure out percentage of audiobook position
         audiobook_percentage = start / self.audio_length
         # Once we have this percentage, subtract 3% for searching in text
-        audiobook_percentage -= 0.05
+        audiobook_percentage -= 0.02
         if audiobook_percentage < 0:
             audiobook_percentage = 0
 
         # Use percentage to get starting point of where to look
         text_start_loc = int( audiobook_percentage      * self.ebook_size)
-        text_end_loc   = int((audiobook_percentage+0.1) * self.ebook_size)
+        text_end_loc   = int((audiobook_percentage+0.04) * self.ebook_size)
         if text_end_loc > self.ebook_size:
             text_end_loc = self.ebook_size
 
-        with open(f"{self.temp_dir}/input.txt", 'r') as f:
+        with open(path.join(self.temp_dir, "input.txt"), 'r') as f:
             text_search = f.read()[text_start_loc:text_end_loc]
 
         # Look for search string in subsection
         try:
-            nearest = find_near_matches(search_str, text_search, max_l_dist=8)
+            nearest = find_near_matches(search_str, text_search, max_l_dist=7)
             # Adjust start position by actual start position
             return nearest[0].start + text_start_loc
         except:
@@ -128,7 +134,7 @@ class AESync:
 
         # Find closest lower
         idx = 0
-        while times[idx] < audio_time and idx < len(times):
+        while idx < len(times) and times[idx] < audio_time:
             idx += 1
 
         lowest = idx
@@ -181,7 +187,8 @@ class AESync:
 
 
 if __name__ == "__main__":
-    BOOKNAME = "Sufficiently Advanced Magic"
+    #BOOKNAME = "Sufficiently Advanced Magic"
+    BOOKNAME = "Oathbringer"
     tester = AESync(f"{BOOKNAME}.epub", f"{BOOKNAME}.m4a", f"{BOOKNAME}.csv")
     if False:
         tester.align_book(step_size=1000, duration=4)
@@ -189,4 +196,4 @@ if __name__ == "__main__":
     else:
         tester.load()
     print()
-    tester.validate(count=10)
+    tester.validate(count=6)
