@@ -7,20 +7,24 @@ from random import randint
 import tempfile
 from os import path
 
+import argparse
+
 import whisper
 
 def interp(x, x1, y1, x2, y2):
     return y1 + (x - x1)*(y2-y1)/(x2-x1)
 
 class AESync:
-    def __init__(self, fname_ebook, fname_audio, fname_map):
+    def __init__(self, fname_ebook, fname_audio, fname_map, model="tiny", max_l_dist=7):
         self.fname_map   = fname_map
         self.fname_ebook = fname_ebook
         self.fname_audio = fname_audio
         
         self.mapping = []
 
-        self.model = whisper.load_model("base")
+        self.model = whisper.load_model("tiny")
+
+        self.max_l_dist = max_l_dist
 
         self.ebook_size   = 0
         self.audio_length = 0
@@ -62,8 +66,6 @@ class AESync:
         subprocess.run(cmd, shell=True)
 
         # Transcribe audio
-        #cmd = f"spchcat {temp_filename}"
-        #ret_output = subprocess.run(cmd, shell=True, capture_output=True, text=True).stdout
         result = self.model.transcribe(temp_filename, fp16=False)
         if debug:
             print(f" Result: {result['text']}")
@@ -118,7 +120,7 @@ class AESync:
 
         # Look for search string in subsection
         try:
-            nearest = find_near_matches(search_str, text_search, max_l_dist=7)
+            nearest = find_near_matches(search_str, text_search, max_l_dist=self.max_l_dist)
             # Adjust start position by actual start position
             return nearest[0].start + text_start_loc
         except:
@@ -185,15 +187,25 @@ class AESync:
             for line in reader:
                 self.mapping.append(line)
 
-
 if __name__ == "__main__":
-    #BOOKNAME = "Sufficiently Advanced Magic"
-    BOOKNAME = "Oathbringer"
-    tester = AESync(f"{BOOKNAME}.epub", f"{BOOKNAME}.m4a", f"{BOOKNAME}.csv")
-    if False:
-        tester.align_book(step_size=1000, duration=4)
-        tester.store()
-    else:
+
+    argParser = argparse.ArgumentParser()
+    argParser.add_argument('audio_file')
+    argParser.add_argument('ebook_file')
+    argParser.add_argument('output_file')
+    argParser.add_argument('-n', action='store_true', dest='no_generate', help='Load map file instead of aligning files.')
+    argParser.add_argument('-c', '--count',      type=int, default=10, help='How many validation samples to run.')
+    argParser.add_argument('-l', '--max_l_dist', type=int, default= 7, help='Max L distance for fuzzy string matching. Higher numbers are more likely to find a match but also take longer.')
+    argParser.add_argument('-s', '--stepsize',   type=int, default=1000, help='Step size between samples in seconds.')
+    argParser.add_argument('-d', '--duration',   type=int, default=4, help='Duration of audio samples in seconds.')
+
+    args = argParser.parse_args()
+
+    tester = AESync(args.ebook_file, args.audio_file, args.output_file, max_l_dist=args.max_l_dist)
+    if args.no_generate:
         tester.load()
-    print()
-    tester.validate(count=6)
+    else:
+        tester.align_book(step_size=args.stepsize, duration=args.duration)
+        tester.store()
+
+    tester.validate(count=args.count)
