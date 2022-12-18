@@ -134,17 +134,14 @@ class AESync:
             positions.append(int(entry["position"]))
 
         # Find closest lower
-        idx = 0
-        while idx < len(times) and times[idx] < audio_time:
-            idx += 1
-
-        lowest = idx
-        highest = idx + 1
+        lowest = 0
+        while lowest < len(times) and times[lowest] < audio_time:
+            lowest += 1
 
         # Check if out of bounds
-        if highest >= len(times):
-            lowest  -= 1
-            highest -= 1
+        if lowest >= len(times) - 1:
+            lowest  = len(times) - 2
+        highest = lowest + 1
 
         position = interp( audio_time, \
                            times[lowest ], positions[lowest ], \
