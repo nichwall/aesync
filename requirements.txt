@@ -1,2 +1,2 @@
 fuzzysearch
-whisper
+openai-whisper
